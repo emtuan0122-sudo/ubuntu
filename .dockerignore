@@ -1,0 +1,9 @@
+.git
+.gitignore
+__pycache__/
+*.log
+*.zip
+*.7z
+node_modules/
+.env
+.vscode/

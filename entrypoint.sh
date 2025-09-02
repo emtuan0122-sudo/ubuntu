@@ -1,9 +1,12 @@
 #!/usr/bin/env bash
-set -e
+set -euo pipefail
 
-# Start SSHD (cổng 2222) chạy nền
-mkdir -p /var/run/sshd
+# Chuẩn bị sshd
+mkdir -p /var/run/sshd /var/log/ssh
+ssh-keygen -A
+
+# Chạy SSHD nền trên cổng 2222
 /usr/sbin/sshd -D -p 2222 &
 
-# Chạy web server (giữ app sống) – app.py lắng nghe PORT=8080
-python3 /app/app.py
+# Chạy web server (app.py) – lắng nghe PORT (mặc định 8080)
+exec python3 /app/app.py

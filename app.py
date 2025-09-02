@@ -1,6 +1,7 @@
 from http.server import SimpleHTTPRequestHandler, HTTPServer
-import os, threading, time, sys
+import os, threading, time
 
+# Job nền: ghi log mỗi 60 giây để biết app đang sống
 def worker():
     while True:
         with open("heartbeat.log", "a", encoding="utf-8") as f:
@@ -9,13 +10,12 @@ def worker():
 
 threading.Thread(target=worker, daemon=True).start()
 
-env_port = os.environ.get("PORT", "")
-port = 8080
+# Chọn cổng web: lấy từ $PORT (Railway) hoặc 8080
+raw = os.environ.get("PORT", "8080")
 try:
-    if env_port:
-        p = int(env_port)
-        # tránh đụng cổng SSH
-        port = 8080 if p == 2222 else p
+    p = int(raw)
+    # Phòng nhầm: nếu ai đó set PORT=2222 (trùng SSH) thì tự chuyển 8080
+    port = 8080 if p == 2222 else p
 except ValueError:
     port = 8080
 

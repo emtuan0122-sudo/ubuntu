@@ -1,0 +1,33 @@
+name: Free Ubuntu VPS with SSH
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 */5 * * *"    # restart mỗi 5 giờ
+
+jobs:
+  vps:
+    runs-on: ubuntu-latest
+    timeout-minutes: 355
+
+    steps:
+      - name: Update & Install tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential pkg-config libssl-dev git curl protobuf-compiler
+
+      - name: Install Rust
+        run: |
+          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+
+      - name: Build Nexus CLI
+        run: |
+          git clone https://github.com/nexus-xyz/nexus-cli.git
+          cd nexus-cli/clients/cli
+          cargo build --release
+
+      - name: Start SSH (tmate)
+        uses: mxschmitt/action-tmate@v3
+        with:
+          limit-access-to-actor: false

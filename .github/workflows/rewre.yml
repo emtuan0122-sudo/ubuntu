@@ -1,0 +1,67 @@
+name: Auto Ubuntu VPS + Setup + Build
+
+on:
+  workflow_dispatch:           # Cho phép bấm Run manually
+  schedule:
+    - cron: "0 */5 * * *"      # Tự chạy lại MỖI 5 GIỜ (trước giới hạn ~6h)
+
+concurrency:
+  group: vps-autobuild
+  cancel-in-progress: false    # Không hủy run đang chạy
+
+jobs:
+  vps:
+    runs-on: ubuntu-latest
+    timeout-minutes: 355       # ~5h55', an toàn dưới 6h
+
+    steps:
+      - name: Add swap (ổn định RAM, optional)
+        run: |
+          sudo fallocate -l 2G /swapfile
+          sudo chmod 600 /swapfile
+          sudo mkswap /swapfile
+          sudo swapon /swapfile
+          echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
+
+      - name: Update & install deps (non-interactive)
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          sudo apt-get update
+          sudo apt-get -y -o Dpkg::Options::="--force-confnew" upgrade
+          sudo apt-get install -y --no-install-recommends \
+            build-essential pkg-config libssl-dev git curl protobuf-compiler ca-certificates
+
+      - name: Install Rust (non-interactive)
+        run: |
+          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+
+      # Cache để build nhanh hơn ở các lần chạy sau
+      - name: Cache Cargo
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            **/target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      - name: Clone repo nexus-cli (HTTPS, không cần SSH key)
+        run: |
+          git clone https://github.com/nexus-xyz/nexus-cli.git
+          ls -la
+
+      - name: Build nexus cli
+        run: |
+          cd nexus-cli/clients/cli
+          cargo build --release
+          ls -la target/release
+
+      # Giữ job sống tới gần timeout (nếu bạn muốn có thời gian dùng tiếp)
+      - name: Keep alive until near timeout (optional)
+        run: |
+          echo "Build xong. Ngủ giữ phiên ~5h cho tới khi cron chạy lại..."
+          sleep $((355*60))

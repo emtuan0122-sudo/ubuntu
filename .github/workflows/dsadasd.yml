@@ -21,11 +21,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # 1) Tải state cũ (nếu có) từ artifact
-      - name: Download previous state artifact
+      # 1) Tải state cũ (nếu có) từ artifact - KHÔNG ép theo workflow name để tránh 404
+      - name: Download previous state artifact (best-effort)
         uses: dawidd6/action-download-artifact@v6
+        continue-on-error: true
         with:
-          workflow: main.yml            # trùng với tên file này
           name: nexus-state
           path: /tmp/nexus-state
           if_no_artifact_found: ignore
@@ -132,18 +132,22 @@ jobs:
         run: |
           sleep $((5*60*60 + 50*60))
 
-      # 7) Đóng gói state để lần chạy sau khôi phục
+      # 7) Đóng gói state để lần chạy sau khôi phục (chỉ nén khi có thư mục)
       - name: Create state archives
         if: always()
         shell: bash
         run: |
           set -euxo pipefail
           mkdir -p /tmp/state-bundle
-          # Lưu ~/.nexus (CLI, config…)
-          tar -czf /tmp/state-bundle/home-runner-nexus.tar.gz -C "$HOME" .nexus || true
-          # Lưu /opt/state (script, logs…)
-          sudo tar -czf /tmp/state-bundle/opt-state.tar.gz -C / opt/state
-          sudo chown "$USER:$USER" /tmp/state-bundle/*.tar.gz
+          # Lưu ~/.nexus (nếu có)
+          if [ -d "$HOME/.nexus" ]; then
+            tar -czf /tmp/state-bundle/home-runner-nexus.tar.gz -C "$HOME" .nexus
+          fi
+          # Lưu /opt/state (nếu có)
+          if [ -d /opt/state ]; then
+            sudo tar -czf /tmp/state-bundle/opt-state.tar.gz -C / opt/state
+            sudo chown "$USER:$USER" /tmp/state-bundle/opt-state.tar.gz
+          fi
 
       - name: Upload state artifact
         if: always()
